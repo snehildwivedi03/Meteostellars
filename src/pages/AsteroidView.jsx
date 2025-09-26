@@ -1,13 +1,30 @@
-// src/pages/AsteroidView.jsx
 import { useState, useRef, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader, extend } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSelector, useDispatch } from "react-redux";
-import BackgroundStars from "../components/BackgroundStars";
-import { fetchNEOsSaga } from "../redux/actionCreators";
+import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
+import BackgroundStars2 from "../components/BackgroundStars2";
+import { Link } from "react-router-dom";
 
-// Earth 3D component
+extend({ STLLoader });
+
+function RotatingAsteroid({ modelUrl, scale = 0.8 }) {
+  const geom = useLoader(STLLoader, modelUrl);
+  const asteroidRef = useRef();
+  useFrame((_, delta) => {
+    if (asteroidRef.current) {
+      asteroidRef.current.rotation.y += delta * 0.2;
+      asteroidRef.current.rotation.x += delta * 0.1;
+    }
+  });
+  return (
+    <mesh ref={asteroidRef} scale={scale}>
+      <primitive object={geom} attach="geometry" />
+      <meshStandardMaterial color="#888" roughness={0.9} metalness={0.5} />
+    </mesh>
+  );
+}
+
 function Earth({ scaleX = 20, scaleY = 5, scaleZ = 20 }) {
   const { scene } = useGLTF("/models/earth.glb");
   const earthRef = useRef();
@@ -25,15 +42,21 @@ function Earth({ scaleX = 20, scaleY = 5, scaleZ = 20 }) {
   );
 }
 
-// Single asteroid card
 function AsteroidCard({ asteroid, onSelect }) {
   return (
     <div
       className="w-40 h-56 rounded-xl bg-gradient-to-b from-gray-800 to-black text-white flex flex-col justify-center items-center cursor-pointer shadow-lg hover:scale-105 transition"
       onClick={() => onSelect(asteroid)}
     >
-      <h3 className="font-bold text-lg text-center">{asteroid.name}</h3>
-      <p className="text-gray-400 text-sm mt-2 text-center">
+      {asteroid.image && (
+        <img
+          src={asteroid.image}
+          alt={asteroid.name}
+          className="w-full h-24 object-cover rounded-t-xl"
+        />
+      )}
+      <h3 className="font-bold text-lg text-center mt-2">{asteroid.name}</h3>
+      <p className="text-gray-400 text-sm mt-1 text-center">
         {asteroid.estimated_diameter.kilometers.estimated_diameter_min.toFixed(
           2
         )}{" "}
@@ -47,11 +70,9 @@ function AsteroidCard({ asteroid, onSelect }) {
   );
 }
 
-// Grid for 12 cards
 function AsteroidCardsGrid({ asteroids, onSelect, onViewMore }) {
   const left = asteroids.slice(0, 6);
   const right = asteroids.slice(6, 12);
-
   return (
     <>
       <div className="absolute top-20 left-10 grid grid-cols-3 gap-4 z-10">
@@ -67,7 +88,7 @@ function AsteroidCardsGrid({ asteroids, onSelect, onViewMore }) {
       {asteroids.length > 12 && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
           <button
-            className="px-6 py-3 bg-gray-800 hover:bg-gray-700 rounded text-white shadow-lg"
+            className="px-8 py-3 font-bold text-white bg-gradient-to-r from-blue-600 to-purple-700 rounded-lg shadow-[0_0_15px_#3b82f6] hover:shadow-[0_0_30px_#3b82f6] transition-all duration-300 transform hover:scale-105"
             onClick={onViewMore}
           >
             View More Asteroids
@@ -78,7 +99,6 @@ function AsteroidCardsGrid({ asteroids, onSelect, onViewMore }) {
   );
 }
 
-// Modal for viewing all asteroids
 function AsteroidModal({ asteroids, onClose, onSelect }) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
@@ -92,7 +112,7 @@ function AsteroidModal({ asteroids, onClose, onSelect }) {
             Close
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {asteroids.map((a, i) => (
             <AsteroidCard key={i} asteroid={a} onSelect={onSelect} />
           ))}
@@ -102,18 +122,42 @@ function AsteroidModal({ asteroids, onClose, onSelect }) {
   );
 }
 
-// Main component
 export default function AsteroidView() {
-  const dispatch = useDispatch();
-  const neosData = useSelector((state) => state.neosDetail.near_earth_objects);
+  const [neosData, setNeosData] = useState(null);
   const [selected, setSelected] = useState(null);
   const [asteroidsForToday, setAsteroidsForToday] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(null);
+
+  const asteroidModels = [
+    "/models/asteroids/a1.stl",
+    "/models/asteroids/a2.stl",
+    "/models/asteroids/a3.stl",
+    "/models/asteroids/a4.stl",
+    "/models/asteroids/a5.stl",
+    "/models/asteroids/a6.stl",
+  ];
 
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
-    dispatch(fetchNEOsSaga(today));
-  }, [dispatch]);
+    const fetchNeos = async () => {
+      try {
+        const res = await fetch(
+          `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=DEMO_KEY`
+        );
+        const data = await res.json();
+        const asteroids = data.near_earth_objects[today] || [];
+        const asteroidsWithImages = asteroids.map((a, i) => ({
+          ...a,
+          image: `/images/${(i % 12) + 1}.png`,
+        }));
+        setNeosData({ [today]: asteroidsWithImages });
+      } catch (err) {
+        console.error("Error fetching asteroids:", err);
+      }
+    };
+    fetchNeos();
+  }, []);
 
   useEffect(() => {
     if (!neosData) return;
@@ -124,20 +168,35 @@ export default function AsteroidView() {
   const handleGoBack = () => setSelected(null);
   const handleViewMore = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
+  const handleSelect = (asteroid) => {
+    setSelected(asteroid);
+    const randomIndex = Math.floor(Math.random() * asteroidModels.length);
+    setSelectedModel(asteroidModels[randomIndex]);
+  };
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black text-white">
-      <BackgroundStars />
+    <div className="relative h-screen w-screen overflow-hidden text-white">
+      <BackgroundStars2 />
+
+      <Link
+        to="/"
+        className="absolute top-5 right-5 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded shadow-lg z-50"
+      >
+        Home
+      </Link>
 
       {!selected && !showModal && (
         <AsteroidCardsGrid
           asteroids={asteroidsForToday}
-          onSelect={setSelected}
+          onSelect={handleSelect}
           onViewMore={handleViewMore}
         />
       )}
 
-      <Canvas camera={{ position: [0, 0, 40], fov: 60 }}>
+      <Canvas
+        camera={{ position: [0, 0, 40], fov: 60 }}
+        style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
+      >
         <ambientLight intensity={1.5} />
         <directionalLight position={[10, 10, 10]} intensity={1.8} />
         <Earth scaleX={20} scaleY={5} scaleZ={20} />
@@ -147,28 +206,34 @@ export default function AsteroidView() {
         {selected && (
           <motion.div
             key="asteroidPanel"
-            className="absolute inset-0 flex"
+            className="absolute inset-0 flex z-30"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
             <button
               onClick={handleGoBack}
-              className="absolute top-5 left-5 px-4 py-2 bg-gray-800 rounded shadow hover:bg-gray-700 transition z-20"
+              className="absolute top-5 left-5 px-4 py-2 bg-gray-800 rounded shadow hover:bg-gray-700 transition z-40"
             >
               Go Back
             </button>
+
             <motion.div
               className="flex-1 flex items-center justify-center"
-              initial={{ x: "100%" }}
+              initial={{ x: "-100%" }}
               animate={{ x: 0 }}
-              exit={{ x: "100%" }}
+              exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 100, damping: 20 }}
             >
-              <div className="w-64 h-64 bg-gray-800 rounded-full flex items-center justify-center text-5xl">
-                🪨
-              </div>
+              <Canvas camera={{ position: [0, 0, 5] }}>
+                <ambientLight intensity={1.5} />
+                <directionalLight position={[5, 5, 5]} intensity={1.8} />
+                {selectedModel && (
+                  <RotatingAsteroid modelUrl={selectedModel} scale={0.8} />
+                )}
+              </Canvas>
             </motion.div>
+
             <motion.div
               className="flex-1 p-10 bg-black/70 overflow-auto"
               initial={{ opacity: 0, x: 50 }}
@@ -247,6 +312,7 @@ export default function AsteroidView() {
                 <a
                   href={selected.nasa_jpl_url}
                   target="_blank"
+                  rel="noopener noreferrer"
                   className="underline"
                 >
                   Link
@@ -257,13 +323,12 @@ export default function AsteroidView() {
         )}
       </AnimatePresence>
 
-      {/* Modal for all asteroids */}
       {showModal && (
         <AsteroidModal
           asteroids={asteroidsForToday}
           onClose={handleCloseModal}
           onSelect={(a) => {
-            setSelected(a);
+            handleSelect(a);
             setShowModal(false);
           }}
         />
