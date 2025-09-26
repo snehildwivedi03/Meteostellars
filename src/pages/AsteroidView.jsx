@@ -4,20 +4,19 @@ import { useGLTF } from "@react-three/drei";
 import { motion, AnimatePresence } from "framer-motion";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import BackgroundStars2 from "../components/BackgroundStars2";
-import { Link } from "react-router-dom";
-
 extend({ STLLoader });
 
-// Rotating asteroid 3D component
 function RotatingAsteroid({ modelUrl, scale = 0.8 }) {
   const geom = useLoader(STLLoader, modelUrl);
   const asteroidRef = useRef();
+
   useFrame((_, delta) => {
     if (asteroidRef.current) {
       asteroidRef.current.rotation.y += delta * 0.2;
       asteroidRef.current.rotation.x += delta * 0.1;
     }
   });
+
   return (
     <mesh ref={asteroidRef} scale={scale}>
       <primitive object={geom} attach="geometry" />
@@ -51,15 +50,8 @@ function AsteroidCard({ asteroid, onSelect }) {
       className="w-40 h-56 rounded-xl bg-gradient-to-b from-gray-800 to-black text-white flex flex-col justify-center items-center cursor-pointer shadow-lg hover:scale-105 transition"
       onClick={() => onSelect(asteroid)}
     >
-      {asteroid.image && (
-        <img
-          src={asteroid.image}
-          alt={asteroid.name}
-          className="w-full h-24 object-cover rounded-t-xl"
-        />
-      )}
-      <h3 className="font-bold text-lg text-center mt-2">{asteroid.name}</h3>
-      <p className="text-gray-400 text-sm mt-1 text-center">
+      <h3 className="font-bold text-lg text-center">{asteroid.name}</h3>
+      <p className="text-gray-400 text-sm mt-2 text-center">
         {asteroid.estimated_diameter.kilometers.estimated_diameter_min.toFixed(
           2
         )}{" "}
@@ -77,6 +69,7 @@ function AsteroidCard({ asteroid, onSelect }) {
 function AsteroidCardsGrid({ asteroids, onSelect, onViewMore }) {
   const left = asteroids.slice(0, 6);
   const right = asteroids.slice(6, 12);
+
   return (
     <>
       <div className="absolute top-20 left-10 grid grid-cols-3 gap-4 z-10">
@@ -144,35 +137,54 @@ export default function AsteroidView() {
     "/models/asteroids/a6.stl",
   ];
 
-  // Fetch NASA NEO API data
+  // Mocking data fetch since Redux is not available
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
-
-    const fetchNeos = async () => {
-      try {
-        const res = await fetch(
-          `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${process.env.REACT_APP_NASA_API_KEY}`
-        );
-
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
-        const data = await res.json();
-        const asteroids = data.near_earth_objects?.[today] || [];
-
-        // Attach images for UI
-        const asteroidsWithImages = asteroids.map((a, i) => ({
-          ...a,
-          image: `/images/${(i % 12) + 1}.png`,
-        }));
-
-        setNeosData({ [today]: asteroidsWithImages });
-      } catch (err) {
-        console.error("Error fetching asteroids:", err);
-        setNeosData({ [today]: [] }); // fallback
-      }
+    const generateMockAsteroid = (i) => ({
+      id: `${2000000 + i}`,
+      name: `(2023 MOCK ${i})`,
+      nasa_jpl_url: "#",
+      is_potentially_hazardous_asteroid: Math.random() > 0.8,
+      estimated_diameter: {
+        kilometers: {
+          estimated_diameter_min: Math.random() * 0.5 + 0.1,
+          estimated_diameter_max: Math.random() * 1 + 0.6,
+        },
+      },
+      close_approach_data: [
+        {
+          close_approach_date: today,
+          close_approach_date_full: `${today} 00:00`,
+          relative_velocity: {
+            kilometers_per_second: `${(Math.random() * 10 + 5).toFixed(2)}`,
+            kilometers_per_hour: `${(Math.random() * 36000 + 18000).toFixed(
+              2
+            )}`,
+          },
+          miss_distance: {
+            astronomical: `${(Math.random() * 0.4 + 0.1).toFixed(4)}`,
+            lunar: `${(Math.random() * 20 + 5).toFixed(2)}`,
+            kilometers: `${(Math.random() * 7000000 + 2000000).toFixed(2)}`,
+          },
+        },
+      ],
+      orbital_data: {
+        first_observation_date: "2023-01-01",
+        orbital_period: `${(Math.random() * 500 + 300).toFixed(2)}`,
+        orbit_class: {
+          orbit_class_type: "APO",
+          orbit_class_description: "Apollo-class asteroid",
+        },
+      },
+    });
+    const mockData = {
+      [today]: Array.from({ length: 15 }, (_, i) => generateMockAsteroid(i)),
     };
 
-    fetchNeos();
+    // Simulate API delay
+    setTimeout(() => {
+      setNeosData(mockData);
+    }, 1000);
   }, []);
 
   useEffect(() => {
@@ -184,6 +196,7 @@ export default function AsteroidView() {
   const handleGoBack = () => setSelected(null);
   const handleViewMore = () => setShowModal(true);
   const handleCloseModal = () => setShowModal(false);
+
   const handleSelect = (asteroid) => {
     setSelected(asteroid);
     const randomIndex = Math.floor(Math.random() * asteroidModels.length);
@@ -193,13 +206,6 @@ export default function AsteroidView() {
   return (
     <div className="relative h-screen w-screen overflow-hidden text-white">
       <BackgroundStars2 />
-
-      <Link
-        to="/"
-        className="absolute top-5 right-5 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded shadow-lg z-50"
-      >
-        Home
-      </Link>
 
       {!selected && !showModal && (
         <AsteroidCardsGrid
@@ -234,6 +240,7 @@ export default function AsteroidView() {
               Go Back
             </button>
 
+            {/* Left: 3D asteroid */}
             <motion.div
               className="flex-1 flex items-center justify-center"
               initial={{ x: "-100%" }}
@@ -250,6 +257,7 @@ export default function AsteroidView() {
               </Canvas>
             </motion.div>
 
+            {/* Right: Info */}
             <motion.div
               className="flex-1 p-10 bg-black/70 overflow-auto"
               initial={{ opacity: 0, x: 50 }}
@@ -305,6 +313,10 @@ export default function AsteroidView() {
                 {selected.close_approach_data[0]?.close_approach_date}
               </p>
               <p className="text-gray-300">
+                Earth closest approach date full:{" "}
+                {selected.close_approach_data[0]?.close_approach_date_full}
+              </p>
+              <p className="text-gray-300">
                 First observation date:{" "}
                 {selected.orbital_data?.first_observation_date}
               </p>
@@ -335,6 +347,7 @@ export default function AsteroidView() {
         )}
       </AnimatePresence>
 
+      {/* Modal for all asteroids */}
       {showModal && (
         <AsteroidModal
           asteroids={asteroidsForToday}
