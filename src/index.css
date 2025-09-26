@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+body {
+  font-family: "Orbitron", sans-serif;
+  background-color: #0a0a0f; /* deep space black */
+  color: #e0e0e0;
+}
+
+/* src/index.css */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 1s ease-out forwards;
+}
+
+.delay-100 {
+  animation-delay: 0.1s;
+}
+.delay-200 {
+  animation-delay: 0.2s;
+}
