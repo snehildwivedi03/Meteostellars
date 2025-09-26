@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 
 extend({ STLLoader });
 
+// Rotating asteroid 3D component
 function RotatingAsteroid({ modelUrl, scale = 0.8 }) {
   const geom = useLoader(STLLoader, modelUrl);
   const asteroidRef = useRef();
@@ -25,6 +26,7 @@ function RotatingAsteroid({ modelUrl, scale = 0.8 }) {
   );
 }
 
+// Earth 3D component
 function Earth({ scaleX = 20, scaleY = 5, scaleZ = 20 }) {
   const { scene } = useGLTF("/models/earth.glb");
   const earthRef = useRef();
@@ -42,6 +44,7 @@ function Earth({ scaleX = 20, scaleY = 5, scaleZ = 20 }) {
   );
 }
 
+// Single asteroid card
 function AsteroidCard({ asteroid, onSelect }) {
   return (
     <div
@@ -70,6 +73,7 @@ function AsteroidCard({ asteroid, onSelect }) {
   );
 }
 
+// Grid for 12 cards
 function AsteroidCardsGrid({ asteroids, onSelect, onViewMore }) {
   const left = asteroids.slice(0, 6);
   const right = asteroids.slice(6, 12);
@@ -99,6 +103,7 @@ function AsteroidCardsGrid({ asteroids, onSelect, onViewMore }) {
   );
 }
 
+// Modal for viewing all asteroids
 function AsteroidModal({ asteroids, onClose, onSelect }) {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-6">
@@ -122,6 +127,7 @@ function AsteroidModal({ asteroids, onClose, onSelect }) {
   );
 }
 
+// Main component
 export default function AsteroidView() {
   const [neosData, setNeosData] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -138,24 +144,34 @@ export default function AsteroidView() {
     "/models/asteroids/a6.stl",
   ];
 
+  // Fetch NASA NEO API data
   useEffect(() => {
     const today = new Date().toISOString().split("T")[0];
+
     const fetchNeos = async () => {
       try {
         const res = await fetch(
-          `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=DEMO_KEY`
+          `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${process.env.REACT_APP_NASA_API_KEY}`
         );
+
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
         const data = await res.json();
-        const asteroids = data.near_earth_objects[today] || [];
+        const asteroids = data.near_earth_objects?.[today] || [];
+
+        // Attach images for UI
         const asteroidsWithImages = asteroids.map((a, i) => ({
           ...a,
           image: `/images/${(i % 12) + 1}.png`,
         }));
+
         setNeosData({ [today]: asteroidsWithImages });
       } catch (err) {
         console.error("Error fetching asteroids:", err);
+        setNeosData({ [today]: [] }); // fallback
       }
     };
+
     fetchNeos();
   }, []);
 
@@ -287,10 +303,6 @@ export default function AsteroidView() {
               <p className="text-gray-300">
                 Earth closest approach date:{" "}
                 {selected.close_approach_data[0]?.close_approach_date}
-              </p>
-              <p className="text-gray-300">
-                Earth closest approach date full:{" "}
-                {selected.close_approach_data[0]?.close_approach_date_full}
               </p>
               <p className="text-gray-300">
                 First observation date:{" "}
