@@ -10,8 +10,8 @@ export default function Home() {
       <div className="relative z-10 flex h-full flex-col items-center">
         <BackgroundStars />
         {/* Logo */}
-        <h1 className="mt-10 w-full text-center text-6xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 drop-shadow-lg">
-          <Link to="/"> MeteoStellars</Link>
+        <h1 className="mt-10 w-full text-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 drop-shadow-lg">
+          <Link to="/">MeteoStellars</Link>
         </h1>
 
         {/* Center Buttons */}
