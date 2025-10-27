@@ -11,7 +11,7 @@ export default function Home() {
         <BackgroundStars />
         {/* Logo */}
         <h1 className="mt-10 w-full text-center text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 drop-shadow-lg">
-          <Link to="/">MeteoStellars</Link>
+          <Link to="/">Asteroid Risk Prediction</Link>
         </h1>
 
         {/* Center Buttons */}
