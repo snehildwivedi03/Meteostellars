@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Canvas, useFrame, useLoader, extend } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
@@ -33,8 +33,9 @@ function Asteroid3D({ modelUrl, onReachEarth }) {
   const [hasImpacted, setHasImpacted] = useState(false);
 
   const path = useMemo(() => {
-    const startX = (Math.random() - 0.5) * 60;
-    const startY = (Math.random() - 0.5) * 40;
+    // Adjusted spread for better mobile visibility
+    const startX = (Math.random() - 0.5) * 40;
+    const startY = (Math.random() - 0.5) * 30;
     const start = new THREE.Vector3(startX, startY, 50);
     const middle = new THREE.Vector3(
       (Math.random() - 0.5) * 20,
@@ -94,7 +95,7 @@ function ImpactExplosion({ position }) {
   );
 }
 
-function Earth() {
+function Earth({ scale }) {
   const { scene } = useGLTF("/models/earth.glb");
   const groupRef = useRef();
   const isDragging = useRef(false);
@@ -135,7 +136,7 @@ function Earth() {
       onPointerMove={handlePointerMove}
       onPointerOut={handlePointerOut}
     >
-      <primitive object={scene} scale={10} position={[0, 0, 0]} />
+      <primitive object={scene} scale={scale} position={[0, 0, 0]} />
     </group>
   );
 }
@@ -157,6 +158,7 @@ export default function Simulation() {
   const [impactPoint, setImpactPoint] = useState(null);
   const [cameraShake, setCameraShake] = useState(false);
   const [size, setSize] = useState(1.0);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [playImpact] = useSound(impactSfx, { volume: 1 });
 
@@ -168,6 +170,14 @@ export default function Simulation() {
     "/models/asteroids/a5.stl",
     "/models/asteroids/a6.stl",
   ];
+
+  // Responsive Check
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   const handleImpact = (finalPosition) => {
     if (impact) return;
@@ -206,20 +216,35 @@ export default function Simulation() {
   };
 
   return (
-    <div className="h-screen w-screen bg-black text-white flex flex-col">
-      <div className="absolute top-5 right-5 z-20">
+    <div className="relative h-screen w-screen bg-black text-white overflow-hidden">
+      {/* --- Home Button --- */}
+      <div className="absolute top-4 right-4 z-50">
         <Link
           to="/"
-          className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded shadow-lg"
+          className="px-4 py-2 bg-green-600 hover:bg-green-500 rounded shadow-lg text-sm md:text-base transition-colors"
         >
           Home
         </Link>
       </div>
 
+      {/* --- Controls Panel (Launch) --- */}
       {!selectedAsteroid && (
-        <div className="absolute top-5 left-5 z-20 flex flex-col gap-3 bg-gray-900/70 p-4 rounded-lg">
-          <label className="flex flex-col">
-            <span className="mb-1">Select Asteroid Diameter (km)</span>
+        <div
+          className={`
+            absolute z-40 bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col gap-4 shadow-2xl transition-all duration-300
+            /* Mobile: Bottom Center */
+            bottom-8 left-4 right-4 
+            /* Desktop: Top Left */
+            md:bottom-auto md:right-auto md:top-6 md:left-6 md:w-80
+          `}
+        >
+          <div className="flex flex-col">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-300 font-medium">Diameter</span>
+              <span className="text-blue-400 font-bold">
+                {size.toFixed(1)} km
+              </span>
+            </div>
             <input
               type="range"
               min="0.5"
@@ -227,11 +252,16 @@ export default function Simulation() {
               step="0.5"
               value={size}
               onChange={(e) => setSize(parseFloat(e.target.value))}
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
-            <span className="text-sm mt-1">{size.toFixed(1)} km</span>
-          </label>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>0.5km</span>
+              <span>10km</span>
+            </div>
+          </div>
+
           <button
-            className="px-6 py-3 font-bold text-white bg-gradient-to-r from-blue-600 to-purple-700 rounded-lg shadow-[0_0_15px_#3b82f6] hover:shadow-[0_0_30px_#3b82f6] transition-all duration-300 transform hover:scale-105"
+            className="w-full py-3 md:py-3 font-bold text-white bg-gradient-to-r from-blue-600 to-purple-700 rounded-xl shadow-[0_0_15px_rgba(59,130,246,0.5)] hover:shadow-[0_0_25px_rgba(59,130,246,0.7)] active:scale-95 transition-all duration-200"
             onClick={launchAsteroid}
           >
             Launch Asteroid
@@ -239,13 +269,18 @@ export default function Simulation() {
         </div>
       )}
 
-      <div className="flex-1 flex">
-        <Canvas camera={{ position: [0, 0, 40], fov: 60 }} className="flex-1">
+      {/* --- 3D Scene --- */}
+      <div className="absolute inset-0 z-0">
+        <Canvas
+          // Pull camera back on mobile (55) vs desktop (40) so Earth fits
+          camera={{ position: [0, 0, isMobile ? 55 : 40], fov: 60 }}
+        >
           <Stars count={3000} />
           <ambientLight intensity={1.2} />
           <directionalLight position={[10, 10, 10]} intensity={1.5} />
           <CameraManager shake={cameraShake} />
-          <Earth />
+          {/* Scale Earth slightly smaller on mobile to allow room for UI */}
+          <Earth scale={isMobile ? 8 : 10} />
           {impactPoint && <ImpactExplosion position={impactPoint} />}
           {selectedAsteroid && !impact && (
             <Asteroid3D
@@ -254,37 +289,63 @@ export default function Simulation() {
             />
           )}
         </Canvas>
-
-        {impact && impactData && (
-          <div className="absolute right-5 top-1/2 -translate-y-1/2 w-80 bg-gray-900/80 backdrop-blur-sm p-6 rounded shadow-lg flex flex-col gap-3">
-            <h2 className="text-xl font-bold text-red-400">
-              {impactData.name} Impacted Earth!
-            </h2>
-            <p>
-              <span className="font-semibold">Coordinates:</span> {impactData.x}
-              ° Lat, {impactData.y}° Long
-            </p>
-            <p>
-              <span className="font-semibold">Diameter:</span>{" "}
-              {impactData.diameter} km
-            </p>
-            <p>
-              <span className="font-semibold">Energy:</span> {impactData.energy}{" "}
-              TJ
-            </p>
-            <p>
-              <span className="font-semibold">Impact Area:</span>{" "}
-              {impactData.radius} km²
-            </p>
-            <button
-              className="mt-3 px-4 py-2 bg-red-600 hover:bg-red-500 rounded transition-colors"
-              onClick={resetSimulation}
-            >
-              Reset Simulation
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* --- Impact Results Panel --- */}
+      {impact && impactData && (
+        <div
+          className={`
+            absolute z-50 bg-gray-900/95 backdrop-blur-lg border border-red-500/30 shadow-2xl overflow-hidden
+            /* Mobile: Bottom Sheet slide-up */
+            bottom-0 left-0 w-full rounded-t-3xl p-6 pb-10 animate-in slide-in-from-bottom duration-500
+            /* Desktop: Floating Card on Right */
+            md:bottom-auto md:left-auto md:right-8 md:top-1/2 md:-translate-y-1/2 md:w-80 md:rounded-2xl md:p-6
+          `}
+        >
+          <div className="flex items-start justify-between mb-4">
+            <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-500">
+              Impact Confirmed!
+            </h2>
+            <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse mt-2"></div>
+          </div>
+
+          <div className="space-y-3 text-sm md:text-base text-gray-200">
+            <div className="flex justify-between border-b border-gray-800 pb-1">
+              <span className="text-gray-400">Object</span>
+              <span>{impactData.name}</span>
+            </div>
+            <div className="flex justify-between border-b border-gray-800 pb-1">
+              <span className="text-gray-400">Coordinates</span>
+              <span>
+                {impactData.x}, {impactData.y}
+              </span>
+            </div>
+            <div className="flex justify-between border-b border-gray-800 pb-1">
+              <span className="text-gray-400">Diameter</span>
+              <span>{impactData.diameter} km</span>
+            </div>
+            <div className="flex justify-between border-b border-gray-800 pb-1">
+              <span className="text-gray-400">Est. Energy</span>
+              <span className="text-yellow-400 font-mono">
+                {impactData.energy} TJ
+              </span>
+            </div>
+            <div className="flex justify-between border-b border-gray-800 pb-1">
+              <span className="text-gray-400">Destruction Radius</span>
+              <span className="text-red-400 font-mono">
+                {impactData.radius} km²
+              </span>
+            </div>
+          </div>
+
+          <button
+            className="w-full mt-6 py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold transition-colors shadow-lg shadow-red-900/40"
+            onClick={resetSimulation}
+          >
+            Reset Simulation
+          </button>
+        </div>
+      )}
     </div>
   );
 }
